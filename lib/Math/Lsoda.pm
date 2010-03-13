@@ -1,8 +1,18 @@
 package Math::Lsoda;
-use strict;
-use warnings;
+use Any::Moose;
+
 our $VERSION = '0.01';
 our @ISA;
+
+has verbose => (
+    is    => 'rw',
+    isa   => 'Int',
+    default => 1,
+    );
+
+__PACKAGE__->meta->make_immutable;
+
+no Any::Moose;
 
 eval {
     require XSLoader;
@@ -14,12 +24,19 @@ eval {
     __PACKAGE__->bootstrap($VERSION);
 };
 
+sub register {
+    my ($self, @args) = @_;
+}
+sub run {
+    my $self = shift;
+}
+
 1;
 __END__
 
 =head1 NAME
 
-Math::Lsoda -
+Math::Lsoda - solve ordinary differential equation systems using lsoda.
 
 =head1 SYNOPSIS
 
