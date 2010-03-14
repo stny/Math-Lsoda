@@ -1,20 +1,19 @@
 use strict;
 use Test::More;
+use POSIX;
 use Math::Lsoda;
 
 {
   my $solver = Math::Lsoda->new(equation           => \&eqns,
                                 initial            => [1.0, 0.0, 0.0],
                                 start              => 0.0,
-                                end                => 100.0,
+                                end                => 10.0,
                                 dt                 => 1,
-                                relative_tolerance => [1.0e-4, 1.0e-8, 1.0e-4],
-                                absolute_tolerance => [1.0e-6, 1.0e-10,1.0e-6],
-                                filename           => 'file.dat');
+                               );
 
-  isa_ok ($solver, 'Math::Lsoda');
-  is($solver->run, 2, "run test");
-  unlink 'file.dat';
+  ok(eq_array( \@{$solver->relative_tolerance}, [sqrt(DBL_EPSILON),sqrt(DBL_EPSILON),sqrt(DBL_EPSILON)]), "tolerance test");
+  ok(eq_array( \@{$solver->absolute_tolerance}, [sqrt(DBL_EPSILON),sqrt(DBL_EPSILON),sqrt(DBL_EPSILON)]), "tolerance test");
+
 }
 sub eqns {
   my ($t, $x, $y) = @_;

@@ -6,15 +6,13 @@ extern "C" {
 #include "XSUB.h"
 #include "ppport.h"
 #include <math.h>
-  typedef int (*deriv_func)(double t, double* x, double* dx);
-  typedef int (*jac_func)(double t, double* x, double** mat);
-  typedef int (*lsoda_func_ptr) (const int* neq, const double* t, double* y, double* ydot);
-  typedef int (*lsoda_jacobi_ptr) (const int* neq, const double* t, double* y, const int* ml, const int* mu, double* pd, const int* nrowpd);
-  void dlsoda_(lsoda_func_ptr f, const int * neq, double* y,
-               double* t, double const * tout, int const* itol, double const* rtol,
-               double const* atol, int const* itask, int* istate,
-               int const* iopt, double* rwork, int const* lrw, int* iwork,
-               int const* liw, lsoda_jacobi_ptr jac, int const* jt);
+  typedef int (*deriv_func) (const int* dim, const double* t, double* x, double* y);
+  typedef int (*jacobi_func) (const int* dim, const double* t, double* x, const int* ml, const int* mu, double* pd, const int* nrowpd);
+  void dlsoda_(deriv_func f, const int* dim, double* x,
+               double* t, const double* tout, const int* itol, const double* rtol,
+               const double* atol, const int* itask, int* istate,
+               const int* iopt, double* rwork, const int* lrw, int* iwork,
+               const int* liw, jacobi_func jac, const int* jt);
 #ifdef __cplusplus
 }
 #endif
@@ -33,7 +31,7 @@ typedef PerlIO * OutputStream;
 
 static SV* func = (SV*)NULL;
 
-void call_func(SV* func_name, double* t, SV* x, SV* y)
+void call_func(SV* func_name, const double* t, SV* x, SV* y)
 {
   dSP;
   ENTER;
@@ -50,22 +48,22 @@ void call_func(SV* func_name, double* t, SV* x, SV* y)
   LEAVE;
 }
 
-int lsoda(int* dim, double* t, double* x, double* y)
+int equation(const int* dim, const double* t, double* x, double* y)
 {
   int size = *dim, i;
-  SV* svx[size];
-  SV* svy[size];
+  SV* sv_x[size];
+  SV* sv_y[size];
   for(i=0;i<size;i++){
-    svx[i] = sv_2mortal(newSVnv(x[i]));
-    svy[i] = sv_2mortal(newSVnv(y[i]));
+    sv_x[i] = sv_2mortal(newSVnv(x[i]));
+    sv_y[i] = sv_2mortal(newSVnv(y[i]));
   }
-  SV* svx1 = newRV_noinc((SV*)av_make(size, svx));
-  SV* svy1 = newRV_noinc((SV*)av_make(size, svy));
+  SV* sv_x1 = newRV_noinc((SV*)av_make(size, sv_x));
+  SV* sv_y1 = newRV_noinc((SV*)av_make(size, sv_y));
 
-  call_func(func, t, svx1, svy1);
-  AV* avy = (AV*)SvRV(svy1);
+  call_func(func, t, sv_x1, sv_y1);
+  AV* av_y = (AV*)SvRV(sv_y1);
   for(i=0;i<size;i++){
-    SV** pv = av_fetch(avy,i,0);
+    SV** pv = av_fetch(av_y,i,0);
     y[i] = SvNV(*pv);
   }
 }
@@ -80,10 +78,10 @@ int required_size(double start, double end, double dt)
 }
 
 int
-solve(SV* func_name, AV* y, double t, double tout, double dt, AV* rtol, AV* atol, OutputStream stream)
+solve(SV* func_name, AV* x, double t, double tout, double dt, AV* rtol, AV* atol, OutputStream stream)
 {
   func = func_name;
-  int dim = av_len(y) + 1;
+  int dim = av_len(x) + 1;
   int i, step;
   int maxvalue = 16 > (dim+9) ? 16 : (dim+9);
   int lrw = 22 + dim * maxvalue;
@@ -93,33 +91,33 @@ solve(SV* func_name, AV* y, double t, double tout, double dt, AV* rtol, AV* atol
   int istate = 1;
   int iopt = 0;
   int jt = 2;
+  double a_x[dim], a_rtol[dim], a_atol[dim];
+  double rwork[lrw];
+  int iwork[liw];
   FILE *fp = PerlIO_findFILE(stream);
   int maxStep = required_size(t, tout, dt);
   double t1 = t + dt;
-  double ay[dim], artol[dim], aatol[dim], rwork[lrw];
-  int iwork[liw];
   for(i=0;i<dim;i++){
-    SV** pv = av_fetch(y,i,0);
-    ay[i] = SvNV(*pv);
+    SV** pv = av_fetch(x,i,0);
+    a_x[i] = SvNV(*pv);
     pv = av_fetch(rtol,i,0);
-    artol[i] = SvNV(*pv);
+    a_rtol[i] = SvNV(*pv);
     pv= av_fetch(atol,i,0);
-    aatol[i] = SvNV(*pv);
+    a_atol[i] = SvNV(*pv);
   }
 
   fprintf(fp, "%g", t);
   for(i=0;i<dim;i++){
-    fprintf(fp, "\t%g", ay[i]);
+    fprintf(fp, "\t%g", a_x[i]);
   }
   fprintf(fp, "\n");
 
-
   for(step=1;step<maxStep;step++){
-    dlsoda_(lsoda, &dim, ay, &t, &t1, &itol, artol, aatol, &itask, &istate, &iopt, rwork, &lrw, iwork, &liw, NULL, &jt);
+    dlsoda_(equation, &dim, a_x, &t, &t1, &itol, a_rtol, a_atol, &itask, &istate, &iopt, rwork, &lrw, iwork, &liw, NULL, &jt);
 
     fprintf(fp, "%g", t);
     for(i=0;i<dim;i++){
-    fprintf(fp, "\t%g", ay[i]);
+    fprintf(fp, "\t%g", a_x[i]);
     }
     fprintf(fp, "\n");
 
@@ -129,7 +127,7 @@ solve(SV* func_name, AV* y, double t, double tout, double dt, AV* rtol, AV* atol
       break;
     case -1:
       fprintf(stderr, "[WARNING]: excess work done at t =%14.6e (perhaps wrong JT).\n", t);
-      istate = 1;
+      /* istate = 1; */
       return istate;
     case -2:
       fprintf(stderr, "[ERROR]: excess accuracy requested at t =%14.6e (tolerances too small).\n", t);
@@ -157,13 +155,12 @@ solve(SV* func_name, AV* y, double t, double tout, double dt, AV* rtol, AV* atol
   return istate;
 }
 
-
 MODULE = Math::Lsoda  PACKAGE = Math::Lsoda
 
 int
-solve(func_name, y, t, tout, dt, rtol, atol, stream)
+solve(func_name, x, t, tout, dt, rtol, atol, stream)
 SV* func_name;
-AV* y;
+AV* x;
 double t;
 double tout;
 double dt;
