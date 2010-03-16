@@ -1,4 +1,7 @@
 Revision history for Perl extension Math::Lsoda
 
+0.02    Tue Mar 16 17:21:22 2010
+        - fixed Makefile.PL
+
 0.01    Sat Mar 13 21:19:21 2010
         - original version

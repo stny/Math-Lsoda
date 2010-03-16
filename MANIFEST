@@ -1,4 +1,5 @@
 Changes
+inc/ExtUtils/F77.pm
 inc/Module/Install.pm
 inc/Module/Install/AuthorTests.pm
 inc/Module/Install/Base.pm
@@ -16,11 +17,15 @@ Lsoda.xs
 Makefile.PL
 MANIFEST			This list of files
 META.yml
+opkda1.f
+opkda2.f
+opkdmain.f
 ppport.h
 README
 t/00_compile.t
 t/01_basic.t
-typemap
+t/02_error.t
+t/03_tolerance.t
 xt/01_podspell.t
 xt/02_perlcritic.t
 xt/03_pod.t
