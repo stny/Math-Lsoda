@@ -19,7 +19,7 @@ if ($^O eq "darwin") {
     if ($compiler eq "gfortran") {
         $cflags .= " -std=legacy";
     } else {
-        $cflags .= " -w";
+        $cflags .= " -lg2c -w";
     }
 }
 
