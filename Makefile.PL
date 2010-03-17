@@ -10,13 +10,18 @@ my $compiler;
 my $cflags;
 if ($^O eq "darwin") {
     ExtUtils::F77->import(qw{Darwin GFortran});
+    $compiler     = ExtUtils::F77->compiler();
     $cflags       = "-ffixed-form -std=legacy -O2";
 } else {
     ExtUtils::F77->import();
-    $cflags       = "-ffixed-form -std=legacy -O2 -fPIC";
+    $compiler     = ExtUtils::F77->compiler();
+    $cflags = "-ffixed-form -O2 -fPIC";
+    if ($compiler eq "gfortran") {
+        $cflags .= " -std=legacy";
+    } else {
+        $cflags .= " -w";
+    }
 }
-
-$compiler     = ExtUtils::F77->compiler();
 
 can_cc or die "This module requires a C compiler";
 makemaker_args(
