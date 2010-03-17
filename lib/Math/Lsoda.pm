@@ -3,7 +3,7 @@ use 5.008_001;
 use POSIX;
 use Any::Moose;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 our @ISA;
 
 has equation => (
